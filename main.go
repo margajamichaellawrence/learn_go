@@ -5,61 +5,89 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"time"
 )
 
+const loginURL = "https://dev-backend-platform.eufit.io/auth/login"
+
 type LoginRequest struct {
-	Username string `json:"username"`
+	Email    string `json:"email"`
 	Password string `json:"password"`
 }
 
-type LoginResponse struct {
-	Token string `json:"token"`
+// TokenPair holds the short-lived access JWT and the longer-lived refresh JWT.
+// Only the access token is accepted as a bearer.
+type TokenPair struct {
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
 }
 
-var ErrInvalidCredentials = errors.New("invalid username or password")
+type UserInfo struct {
+	Email         string `json:"email"`
+	EmailVerified bool   `json:"email_verified"`
+}
 
-// Login sends username and password to url and returns the token from the server.
-func Login(client *http.Client, url, username, password string) (string, error) {
-	body, err := json.Marshal(LoginRequest{Username: username, Password: password})
+type LoginResult struct {
+	Tokens TokenPair `json:"tokens"`
+	User   UserInfo  `json:"user"`
+}
+
+var (
+	// ErrInvalidCredentials is returned on 401 (AUTH_004).
+	ErrInvalidCredentials = errors.New("invalid email or password")
+	// ErrForbidden is returned on 403: unverified email (AUTH_006),
+	// disabled account (AUTHZ_002) or suspended organization (AUTHZ_003).
+	ErrForbidden = errors.New("login forbidden")
+)
+
+// Login sends email and password to url and returns the tokens and user info from the server.
+func Login(client *http.Client, url, email, password string) (*LoginResult, error) {
+	body, err := json.Marshal(LoginRequest{Email: email, Password: password})
 	if err != nil {
-		return "", fmt.Errorf("marshal: %w", err)
+		return nil, fmt.Errorf("marshal: %w", err)
 	}
 
 	req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(body))
 	if err != nil {
-		return "", fmt.Errorf("new request: %w", err)
+		return nil, fmt.Errorf("new request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("do request: %w", err)
+		return nil, fmt.Errorf("do request: %w", err)
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode == http.StatusUnauthorized {
-		return "", ErrInvalidCredentials
-	}
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("unexpected status: %s", resp.Status)
+	switch resp.StatusCode {
+	case http.StatusOK:
+	case http.StatusUnauthorized:
+		return nil, ErrInvalidCredentials
+	case http.StatusForbidden:
+		msg, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("%w: %s", ErrForbidden, msg)
+	default:
+		msg, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("unexpected status %s: %s", resp.Status, msg)
 	}
 
-	var out LoginResponse
+	var out LoginResult
 	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
-		return "", fmt.Errorf("decode response: %w", err)
+		return nil, fmt.Errorf("decode response: %w", err)
 	}
-	return out.Token, nil
+	return &out, nil
 }
 
 func main() {
 	client := &http.Client{Timeout: 10 * time.Second}
 
-	token, err := Login(client, "http://localhost:8080/login", "demo", "secret")
+	result, err := Login(client, loginURL, "demo@example.com", "secret")
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println("logged in, token:", token)
+	fmt.Println("logged in as:", result.User.Email)
+	fmt.Println("access token:", result.Tokens.AccessToken)
 }
