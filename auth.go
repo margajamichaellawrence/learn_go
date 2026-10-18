@@ -1,4 +1,6 @@
-package main
+// Package auth is a client for the eufit auth API. Its tests are the tester app:
+// they run against the real API and fail if the login contract breaks.
+package auth
 
 import (
 	"bytes"
@@ -6,12 +8,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
-	"time"
 )
 
-const loginURL = "https://dev-backend-platform.eufit.io/auth/login"
+const loginPath = "/auth/login"
 
 type LoginRequest struct {
 	Email    string `json:"email"`
@@ -79,15 +79,4 @@ func Login(client *http.Client, url, email, password string) (*LoginResult, erro
 		return nil, fmt.Errorf("decode response: %w", err)
 	}
 	return &out, nil
-}
-
-func main() {
-	client := &http.Client{Timeout: 10 * time.Second}
-
-	result, err := Login(client, loginURL, "demo@example.com", "secret")
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Println("logged in as:", result.User.Email)
-	fmt.Println("access token:", result.Tokens.AccessToken)
 }

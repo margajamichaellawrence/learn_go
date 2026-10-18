@@ -1,4 +1,4 @@
-package main
+package auth
 
 import (
 	"bufio"
@@ -10,9 +10,9 @@ import (
 	"time"
 )
 
-// These tests hit the real dev API at loginURL.
-// Put EUFIT_EMAIL and EUFIT_PASSWORD in .env (git-ignored, see .env.example)
-// or set them in your shell to run TestLoginPass.
+// These tests hit the real API at EUFIT_BASE_URL.
+// Put EUFIT_BASE_URL, EUFIT_EMAIL and EUFIT_PASSWORD in .env (git-ignored, see .env.example)
+// or set them in your shell.
 
 func TestMain(m *testing.M) {
 	loadDotEnv(".env")
@@ -45,17 +45,28 @@ func loadDotEnv(path string) {
 	}
 }
 
+// loginURL returns the login endpoint built from EUFIT_BASE_URL, skipping the test if it isn't set.
+func loginURL(t *testing.T) string {
+	t.Helper()
+	baseURL := strings.TrimSuffix(os.Getenv("EUFIT_BASE_URL"), "/")
+	if baseURL == "" {
+		t.Skip("EUFIT_BASE_URL not set")
+	}
+	return baseURL + loginPath
+}
+
 func newClient() *http.Client {
 	return &http.Client{Timeout: 10 * time.Second}
 }
 
 func TestLoginPass(t *testing.T) {
+	url := loginURL(t)
 	email, password := os.Getenv("EUFIT_EMAIL"), os.Getenv("EUFIT_PASSWORD")
 	if email == "" || password == "" {
 		t.Skip("EUFIT_EMAIL and EUFIT_PASSWORD not set")
 	}
 
-	result, err := Login(newClient(), loginURL, email, password)
+	result, err := Login(newClient(), url, email, password)
 	if err != nil {
 		t.Fatalf("expected login to pass, got error: %v", err)
 	}
@@ -72,7 +83,7 @@ func TestLoginPass(t *testing.T) {
 
 func TestLoginFail(t *testing.T) {
 	// Uses an address that shouldn't exist so a real account is never hit with a bad password.
-	result, err := Login(newClient(), loginURL, "no-such-user@example.invalid", "wrong-password")
+	result, err := Login(newClient(), loginURL(t), "no-such-user@example.invalid", "wrong-password")
 	if !errors.Is(err, ErrInvalidCredentials) {
 		t.Fatalf("expected ErrInvalidCredentials, got: %v", err)
 	}
