@@ -3,6 +3,7 @@ package auth
 import (
 	"bufio"
 	"errors"
+	"fmt"
 	"net/http"
 	"os"
 	"strings"
@@ -59,12 +60,71 @@ func newClient() *http.Client {
 	return &http.Client{Timeout: 10 * time.Second}
 }
 
+// TestLogin
+// - run all tests EUFIT_BASE_URL=https://dev-backend-platform.eufit.io EUFIT_EMAIL=dembygenesis@gmail.com EUFIT_PASSWORD=<REDACTED> go test ./...
+// - run this test EUFIT_BASE_URL=https://dev-backend-platform.eufit.io EUFIT_EMAIL=dembygenesis@gmail.com EUFIT_PASSWORD=<REDACTED> go test -run '^TestLogin$' -
+func TestLogin(t *testing.T) {
+	tests := []struct {
+		name      string
+		email     string
+		password  string
+		wantErr   error
+		wantEmail string
+	}{
+		{
+			name:      "success",
+			email:     os.Getenv("EUFIT_EMAIL"),
+			password:  os.Getenv("EUFIT_PASSWORD"),
+			wantEmail: os.Getenv("EUFIT_EMAIL"),
+		},
+		{
+			name:     "invalid credentials",
+			email:    "no-such-user@example.invalid",
+			password: "wrong-password",
+			wantErr:  ErrInvalidCredentials,
+		},
+	}
+
+	url := loginURL(t)
+	if os.Getenv("EUFIT_EMAIL") == "" || os.Getenv("EUFIT_PASSWORD") == "" {
+		t.Skip("EUFIT_EMAIL and EUFIT_PASSWORD not set")
+	}
+	client := newClient()
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := Login(client, url, tt.email, tt.password)
+			if !errors.Is(err, tt.wantErr) {
+				t.Fatalf("Login() error = %v, want %v", err, tt.wantErr)
+			}
+			if tt.wantErr != nil {
+				if got != nil {
+					t.Errorf("Login() = %+v, want nil", got)
+				}
+				return
+			}
+
+			if got.Tokens.AccessToken == "" {
+				t.Error("Login() access token is empty")
+			}
+			if got.Tokens.RefreshToken == "" {
+				t.Error("Login() refresh token is empty")
+			}
+			if got.User.Email != tt.wantEmail {
+				t.Errorf("Login() user email = %q, want %q", got.User.Email, tt.wantEmail)
+			}
+		})
+	}
+}
+
 func TestLoginPass(t *testing.T) {
 	url := loginURL(t)
 	email, password := os.Getenv("EUFIT_EMAIL"), os.Getenv("EUFIT_PASSWORD")
 	if email == "" || password == "" {
 		t.Skip("EUFIT_EMAIL and EUFIT_PASSWORD not set")
 	}
+	// doeson't reach it
+	fmt.Println("url", url)
 
 	result, err := Login(newClient(), url, email, password)
 	if err != nil {
