@@ -40,8 +40,10 @@ var (
 )
 
 func Login(client *http.Client, url, email, password string) (*LoginResult, error) {
-	body, err := json.Marshal(LoginRequest{Email: email, Password: password})
-
+	body, err := json.Marshal(LoginRequest{
+		Email:    email,
+		Password: password,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("login failed: %w", err)
 	}
