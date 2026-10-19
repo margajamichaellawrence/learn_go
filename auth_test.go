@@ -19,15 +19,12 @@ var (
 )
 
 func newClient() *http.Client {
-	return &http.Client{Timeout: 10 * time.Second}
+	return &http.Client{
+		Timeout: 10 * time.Second,
+	}
 }
 
 func TestLogin(t *testing.T) {
-	if *baseURL == "" || *email == "" || *password == "" {
-		t.Skip("pass -url, -email and -password to run")
-	}
-	url := strings.TrimSuffix(*baseURL, "/") + loginPath
-
 	tests := []struct {
 		name      string
 		email     string
@@ -50,6 +47,10 @@ func TestLogin(t *testing.T) {
 		},
 	}
 
+	if *baseURL == "" || *email == "" || *password == "" {
+		t.Skip("pass -url, -email and -password to run")
+	}
+	url := strings.TrimSuffix(*baseURL, "/") + loginPath
 	client := newClient()
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
