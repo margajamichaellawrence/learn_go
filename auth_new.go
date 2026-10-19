@@ -1,5 +1,3 @@
-// Package auth is a client for the eufit auth API. Its tests are the tester app:
-// they run against the real API and fail if the login contract breaks.
 package auth
 
 import (
@@ -18,8 +16,6 @@ type LoginRequest struct {
 	Password string `json:"password"`
 }
 
-// TokenPair holds the short-lived access JWT and the longer-lived refresh JWT.
-// Only the access token is accepted as a bearer.
 type TokenPair struct {
 	AccessToken  string `json:"access_token"`
 	RefreshToken string `json:"refresh_token"`
@@ -43,11 +39,11 @@ var (
 	ErrForbidden = errors.New("login forbidden")
 )
 
-// Login sends email and password to url and returns the tokens and user info from the server.
 func Login(client *http.Client, url, email, password string) (*LoginResult, error) {
 	body, err := json.Marshal(LoginRequest{Email: email, Password: password})
+
 	if err != nil {
-		return nil, fmt.Errorf("marshal: %w", err)
+		return nil, fmt.Errorf("login failed: %w", err)
 	}
 
 	req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(body))
@@ -56,26 +52,26 @@ func Login(client *http.Client, url, email, password string) (*LoginResult, erro
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := client.Do(req)
+	response, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("do request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer response.Body.Close()
 
-	switch resp.StatusCode {
+	switch response.StatusCode {
 	case http.StatusOK:
 	case http.StatusUnauthorized:
 		return nil, ErrInvalidCredentials
 	case http.StatusForbidden:
-		msg, _ := io.ReadAll(resp.Body)
+		msg, _ := io.ReadAll(response.Body)
 		return nil, fmt.Errorf("%w: %s", ErrForbidden, msg)
 	default:
-		msg, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("unexpected status %s: %s", resp.Status, msg)
+		msg, _ := io.ReadAll(response.Body)
+		return nil, fmt.Errorf("unexpected status %s: %s", response.Status, msg)
 	}
 
 	var out LoginResult
-	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+	if err := json.NewDecoder(response.Body).Decode(&out); err != nil {
 		return nil, fmt.Errorf("decode response: %w", err)
 	}
 	return &out, nil
