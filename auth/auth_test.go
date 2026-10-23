@@ -4,7 +4,6 @@ import (
 	"errors"
 	"flag"
 	"net/http"
-	"strings"
 	"testing"
 	"time"
 )
@@ -50,11 +49,10 @@ func TestLogin(t *testing.T) {
 	if *baseURL == "" || *email == "" || *password == "" {
 		t.Skip("pass -url, -email and -password to run")
 	}
-	url := strings.TrimSuffix(*baseURL, "/") + loginPath
 	client := newClient()
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := Login(client, url, tt.email, tt.password)
+			got, err := Login(client, *baseURL, tt.email, tt.password)
 			if !errors.Is(err, tt.wantErr) {
 				t.Fatalf("Login() error = %v, want %v", err, tt.wantErr)
 			}
