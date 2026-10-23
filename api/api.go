@@ -1,8 +1,10 @@
 package api
 
 import (
+	"context"
 	"errors"
 	"net/http"
+	"time"
 
 	"go_auth/auth"
 
@@ -16,6 +18,10 @@ func New(client *http.Client, backendURL string) *fiber.App {
 	return app
 }
 
+// loginTimeout bounds the backend call. fiber never cancels c.Context() when the
+// client disconnects, so this deadline is what stops a stuck request.
+const loginTimeout = 10 * time.Second
+
 func login(client *http.Client, backendURL string) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		var req auth.LoginRequest
@@ -26,12 +32,17 @@ func login(client *http.Client, backendURL string) fiber.Handler {
 			return c.Status(fiber.StatusBadRequest).SendString("email and password are required")
 		}
 
-		result, err := auth.Login(client, backendURL, req.Email, req.Password)
+		ctx, cancel := context.WithTimeout(c.Context(), loginTimeout)
+		defer cancel()
+
+		result, err := auth.Login(ctx, client, backendURL, req.Email, req.Password)
 		switch {
 		case errors.Is(err, auth.ErrInvalidCredentials):
 			return c.Status(fiber.StatusUnauthorized).SendString(err.Error())
 		case errors.Is(err, auth.ErrForbidden):
 			return c.Status(fiber.StatusForbidden).SendString(err.Error())
+		case errors.Is(err, context.DeadlineExceeded):
+			return c.Status(fiber.StatusGatewayTimeout).SendString("auth backend timed out")
 		case err != nil:
 			return c.Status(fiber.StatusBadGateway).SendString("auth backend error")
 		}
