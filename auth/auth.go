@@ -2,6 +2,7 @@ package auth
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -41,7 +42,8 @@ var (
 )
 
 // Login posts the credentials to the backend at baseURL and returns its tokens.
-func Login(client *http.Client, baseURL, email, password string) (*LoginResult, error) {
+// Cancelling ctx aborts the backend request.
+func Login(ctx context.Context, client *http.Client, baseURL, email, password string) (*LoginResult, error) {
 	body, err := json.Marshal(LoginRequest{
 		Email:    email,
 		Password: password,
@@ -51,7 +53,7 @@ func Login(client *http.Client, baseURL, email, password string) (*LoginResult, 
 	}
 
 	url := strings.TrimSuffix(baseURL, "/") + loginPath
-	req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("new request: %w", err)
 	}

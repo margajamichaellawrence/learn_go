@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"errors"
 	"flag"
 	"net/http"
@@ -52,7 +53,7 @@ func TestLogin(t *testing.T) {
 	client := newClient()
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := Login(client, *baseURL, tt.email, tt.password)
+			got, err := Login(context.Background(), client, *baseURL, tt.email, tt.password)
 			if !errors.Is(err, tt.wantErr) {
 				t.Fatalf("Login() error = %v, want %v", err, tt.wantErr)
 			}

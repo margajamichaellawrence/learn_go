@@ -1,0 +1,116 @@
+package api
+
+import (
+	"context"
+	"errors"
+	"net/http"
+
+	"go_auth/auth"
+
+	"github.com/gofiber/fiber/v3"
+)
+
+// New builds the app. Logins are forwarded to the auth backend at backendURL.
+func New(client *http.Client, backendURL string) *fiber.App {
+	app := fiber.New()
+	app.Post("/auth/login", login(client, backendURL))
+	return app
+}
+
+ctx = represent an operation's current infromation or medata
+
+// func ParseSentFromUpCloudSystem(ctx fiber.Ctx) {
+func ParseSentFromUpCloudSystem(ctx upcloud.Ctx) {
+	for {
+		select
+			ctx.GotSomeData()
+				// read it
+			ctx.GotShutDownData()
+				// STOP the fucking funciotn, and shut down
+	}
+}
+
+// func level1(ctx context.Context) error {
+func level1(ctx doom.Context) error {
+	->
+	<-
+
+	TCP
+	[] <- <- <- <- (regular flow)
+	[]  X <- (trick to solve)
+
+
+	they have some sort of an API
+
+	ctx.EstablishLightspeedOxyingenTranfser()
+	// setup oxygen lightspeed transfer ( if somethhing breaks ctx.TellDoomNoMoreOxygen() )
+	return level2InSpace(ctx)
+}
+
+func level2InSpace(ctx context.Context) error {
+	for {
+		if context.NoMoreOxygen() {
+			// go back to earht or telepor
+			teleportBack()
+		} else {
+			return level3(ctx)
+		}
+	}
+	return level3(ctx)
+}
+
+func level3(ctx context.Context) error {
+	ctx.Done()
+	ctx.
+	return level4(ctx)
+}
+
+func level4(ctx context.Context) error {
+	return nil
+}
+
+/*func lawrenceGoesInsideTheDoor(c digging.Ctx) error {
+	// context
+	timeout := c.ShovelingTimeout()
+	return nil
+}*/
+
+// full run
+// -> postman OR reactJS app -> http request -> login -> fiber.Ctx
+
+// cancelled run
+// -> postman OR reactJS app -> http request -> login BUT FUCKING STOPS IT CLICKED X -> fiber.Ctx
+
+func login(client *http.Client, backendURL string) fiber.Handler {
+	// return func(c httpRequest.Ctx) error {
+	return func(c fiber.Ctx) error {
+
+		if c.RequestCancelled() {
+			// SOMEONE FUCKING CANCELLED the request — we don't know it is
+		}
+
+		httpMethod := c.Method()
+		httpMethod := c.Body()
+
+		//
+
+		var req auth.LoginRequest
+		if err := c.Bind().Body(&req); err != nil {
+			return c.Status(fiber.StatusBadRequest).SendString("invalid JSON body")
+		}
+		if req.Email == "" || req.Password == "" {
+			return c.Status(fiber.StatusBadRequest).SendString("email and password are required")
+		}
+
+		result, err := auth.Login(client, backendURL, req.Email, req.Password)
+		switch {
+		case errors.Is(err, auth.ErrInvalidCredentials):
+			return c.Status(fiber.StatusUnauthorized).SendString(err.Error())
+		case errors.Is(err, auth.ErrForbidden):
+			return c.Status(fiber.StatusForbidden).SendString(err.Error())
+		case err != nil:
+			return c.Status(fiber.StatusBadGateway).SendString("auth backend error")
+		}
+		return c.JSON(result)
+	}
+}
