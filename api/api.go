@@ -24,6 +24,7 @@ const loginTimeout = 10 * time.Second
 
 func login(client *http.Client, backendURL string) fiber.Handler {
 	return func(c fiber.Ctx) error {
+		c.Context()
 		var req auth.LoginRequest
 		if err := c.Bind().Body(&req); err != nil {
 			return c.Status(fiber.StatusBadRequest).SendString("invalid JSON body")
